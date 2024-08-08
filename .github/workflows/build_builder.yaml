@@ -1,0 +1,35 @@
+name: Build extension builder
+
+on:
+  pull_request: ## TODO - comment out before merge
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+          fetch-depth: 0
+
+      - name: Build image
+        working-directory: ./docker/
+        run: |
+          docker buildx build . \
+            --file ./Dockerfile.builder \
+            --platform=linux/x86_64 \
+            --cache-to=type=inline \
+            --tag ghcr.io/duckdb/builder_native_extension_x86_64:latest \
+            --load
+
+      - name: Login to GitHub Containers
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          # password: ${{ secrets.GH_TOKEN }} # TODO
+
+      - name: Push builder
+        run: docker push ghcr.io/motherduckdb/builder_native_extension_x86_64:latest
