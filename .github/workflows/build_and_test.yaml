@@ -13,92 +13,120 @@ on:
       - '.github/workflows/**'
 
 jobs:
-  clang-format:
-    runs-on: ubuntu-24.04
+  # clang-format:
+  #   runs-on: ubuntu-24.04
+
+  #   steps:
+  #     - name: Checkout pg_duckdb extension code
+  #       uses: actions/checkout@v4
+  #     - name: Fetch main branch
+  #       run: git fetch --depth=1 origin +main:refs/remotes/origin/main
+  #     - name: Install clang-format
+  #       run: sudo apt-get install clang-format
+  #     - name: Run clang-format
+  #       run: git clang-format refs/remotes/origin/main --diff
+  # build-and-test:
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       os: [ubuntu-latest]
+  #       version: [REL_16_STABLE]
+  #   runs-on: ${{ matrix.os }}
+
+  #   steps:
+  #     - name: Test details
+  #       run: echo Build and test pg_duckdb on ${{ matrix.os }} with PostgreSQL ${{ matrix.version }} branch
+
+  #     - name: Install build deps
+  #       run: |
+  #         sudo apt-get update -qq
+  #         sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E298A3A825C0D65DFD57CBB651716619E084DAB9
+  #         sudo apt-get install -y build-essential libreadline-dev zlib1g-dev flex bison libxml2-dev libxslt-dev \
+  #           libssl-dev libxml2-utils xsltproc pkg-config libc++-dev libc++abi-dev libglib2.0-dev libtinfo5 cmake \
+  #           libstdc++-12-dev
+
+  #     - name: ccache
+  #       uses: hendrikmuhs/ccache-action@v1.2
+  #       with:
+  #         create-symlink: true
+
+  #     - name: Checkout pg_duckdb extension code
+  #       uses: actions/checkout@v4
+  #       with:
+  #         submodules: 'recursive'
+  #         path: duckdb
+
+  #     - name: Compute DuckDB SHA
+  #       id: versions
+  #       run: |
+  #         pushd duckdb
+  #         DUCKDB_SHA=`git ls-tree HEAD third_party/duckdb --format='%(objectname)'`
+  #         echo "duckdb_sha=${DUCKDB_SHA}" >> "$GITHUB_OUTPUT"
+  #         echo "Got DUCKDB_SHA='${DUCKDB_SHA}'"
+
+  #     - name: Setup PG build cache
+  #       id: cache-pg-build
+  #       uses: actions/cache@v4
+  #       with:
+  #         path: postgres/inst
+  #         key: pg-build-${{ matrix.version }}
+
+  #     - name: Checkout and build PostgreSQL code
+  #       if: steps.cache-pg-build.outputs.cache-hit != 'true'
+  #       run: |
+  #         rm -rf postgres
+  #         git clone --branch ${{ matrix.version }} --single-branch --depth 1 https://github.com/postgres/postgres.git
+  #         pushd postgres
+  #         git branch
+  #         ./configure --prefix=$PWD/inst/ --enable-cassert --enable-debug --with-openssl --with-icu --with-libxml
+  #         make -j8 install
+
+  #     - name: Setup DuckDB build cache
+  #       id: cache-duckdb-build
+  #       uses: actions/cache@v4
+  #       with:
+  #         path: duckdb/third_party/duckdb/build/
+  #         key: duckdb-build-${{ steps.versions.outputs.duckdb_sha }}
+
+  #     - name: Build and test pg_duckdb extension
+  #       id: regression-tests
+  #       run: |
+  #         export PATH="${PWD}/postgres/inst/bin:$PATH"
+  #         pushd duckdb
+  #         make
+  #         make install
+  #         make installcheck
+  #         popd
+
+  #     - name: Print regression.diffs if regression tests failed
+  #       if: failure() && steps.regression-tests.outcome != 'success'
+  #       run: |
+  #         cat duckdb/test/regression/regression.diffs
+  build-docker:
+    runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout pg_duckdb extension code
-        uses: actions/checkout@v4
-      - name: Fetch main branch
-        run: git fetch --depth=1 origin +main:refs/remotes/origin/main
-      - name: Install clang-format
-        run: sudo apt-get install clang-format
-      - name: Run clang-format
-        run: git clang-format refs/remotes/origin/main --diff
-  build-and-test:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest]
-        version: [REL_16_STABLE]
-    runs-on: ${{ matrix.os }}
-
-    steps:
-      - name: Test details
-        run: echo Build and test pg_duckdb on ${{ matrix.os }} with PostgreSQL ${{ matrix.version }} branch
-
-      - name: Install build deps
-        run: |
-          sudo apt-get update -qq
-          sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E298A3A825C0D65DFD57CBB651716619E084DAB9
-          sudo apt-get install -y build-essential libreadline-dev zlib1g-dev flex bison libxml2-dev libxslt-dev \
-            libssl-dev libxml2-utils xsltproc pkg-config libc++-dev libc++abi-dev libglib2.0-dev libtinfo5 cmake \
-            libstdc++-12-dev
-
-      - name: ccache
-        uses: hendrikmuhs/ccache-action@v1.2
+      - uses: actions/checkout@v4
         with:
-          create-symlink: true
+          submodules: false
+          fetch-depth: 0
 
-      - name: Checkout pg_duckdb extension code
-        uses: actions/checkout@v4
+      - name: Build image
+        working-directory: ./docker/
+        run: |
+          docker buildx build . \
+            --file ./Dockerfile.builder \
+            --platform=linux/x86_64 \
+            --cache-to=type=inline \
+            --tag ghcr.io/duckdb/builder_native_extension_x86_64:latest \
+            --load
+
+      - name: Login to GitHub Containers
+        uses: docker/login-action@v3
         with:
-          submodules: 'recursive'
-          path: duckdb
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          # password: ${{ secrets.GH_TOKEN }} # TODO
 
-      - name: Compute DuckDB SHA
-        id: versions
-        run: |
-          pushd duckdb
-          DUCKDB_SHA=`git ls-tree HEAD third_party/duckdb --format='%(objectname)'`
-          echo "duckdb_sha=${DUCKDB_SHA}" >> "$GITHUB_OUTPUT"
-          echo "Got DUCKDB_SHA='${DUCKDB_SHA}'"
-
-      - name: Setup PG build cache
-        id: cache-pg-build
-        uses: actions/cache@v4
-        with:
-          path: postgres/inst
-          key: pg-build-${{ matrix.version }}
-
-      - name: Checkout and build PostgreSQL code
-        if: steps.cache-pg-build.outputs.cache-hit != 'true'
-        run: |
-          rm -rf postgres
-          git clone --branch ${{ matrix.version }} --single-branch --depth 1 https://github.com/postgres/postgres.git
-          pushd postgres
-          git branch
-          ./configure --prefix=$PWD/inst/ --enable-cassert --enable-debug --with-openssl --with-icu --with-libxml
-          make -j8 install
-
-      - name: Setup DuckDB build cache
-        id: cache-duckdb-build
-        uses: actions/cache@v4
-        with:
-          path: duckdb/third_party/duckdb/build/
-          key: duckdb-build-${{ steps.versions.outputs.duckdb_sha }}
-
-      - name: Build and test pg_duckdb extension
-        id: regression-tests
-        run: |
-          export PATH="${PWD}/postgres/inst/bin:$PATH"
-          pushd duckdb
-          make
-          make install
-          make installcheck
-          popd
-
-      - name: Print regression.diffs if regression tests failed
-        if: failure() && steps.regression-tests.outcome != 'success'
-        run: |
-          cat duckdb/test/regression/regression.diffs
+      - name: Push builder
+        run: docker push ghcr.io/motherduckdb/builder_native_extension_x86_64:latest

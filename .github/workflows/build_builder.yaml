@@ -1,7 +1,7 @@
 name: Build extension builder
 
 on:
-  pull_request: ## TODO - comment out before merge
+  # pull_request:
   workflow_dispatch:
 
 jobs:
