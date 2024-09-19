@@ -44,11 +44,11 @@ PostgresScanGlobalState::InitGlobalState(duckdb::TableFunctionInitInput &input) 
 
 	if (input.CanRemoveFilterColumns()) {
 		for (duckdb::idx_t i = 0; i < input.projection_ids.size(); i++) {
-			m_projections[i] = input.column_ids[input.projection_ids[i]];
+			m_column_selection[i] = input.column_ids[input.projection_ids[i]];
 		}
 	} else {
-		for (duckdb::idx_t i = 0; i < input.projection_ids.size(); i++) {
-			m_projections[i] = input.column_ids[i];
+		for (duckdb::idx_t i = 0; i < input.column_ids.size(); i++) {
+			m_column_selection[i] = input.column_ids[i];
 		}
 	}
 

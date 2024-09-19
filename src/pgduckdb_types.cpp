@@ -1002,14 +1002,14 @@ InsertTupleIntoChunk(duckdb::DataChunk &output, duckdb::shared_ptr<PostgresScanG
 		}
 	}
 
-	for (idx_t idx = 0; valid_tuple && idx < scan_global_state->m_projections.size(); idx++) {
+	for (idx_t idx = 0; valid_tuple && idx < scan_global_state->m_column_selection.size(); idx++) {
 		auto &result = output.data[idx];
 		if (nulls[idx]) {
 			auto &array_mask = duckdb::FlatVector::Validity(result);
 			array_mask.SetInvalid(scan_local_state->m_output_vector_size);
 		} else {
-			idx_t projectionColumnIdx = scan_global_state->m_columns[scan_global_state->m_projections[idx]];
-			if (scan_global_state->m_tuple_desc->attrs[scan_global_state->m_projections[idx]].attlen == -1) {
+			idx_t projectionColumnIdx = scan_global_state->m_columns[scan_global_state->m_column_selection[idx]];
+			if (scan_global_state->m_tuple_desc->attrs[scan_global_state->m_column_selection[idx]].attlen == -1) {
 				bool should_free = false;
 				values[projectionColumnIdx] =
 				    DetoastPostgresDatum(reinterpret_cast<varlena *>(values[projectionColumnIdx]), &should_free);

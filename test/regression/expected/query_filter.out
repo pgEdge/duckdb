@@ -28,3 +28,24 @@ SELECT COUNT(*) = 2 FROM query_filter_float WHERE a < 1.1;
 (1 row)
 
 DROP TABLE query_filter_float;
+CREATE TABLE query_filter_varchar(a VARCHAR);
+INSERT INTO query_filter_varchar VALUES ('t1'), ('t2'), ('t1');
+SELECT COUNT(*) = 2 FROM query_filter_varchar WHERE a = 't1';
+ ?column? 
+----------
+ t
+(1 row)
+
+SELECT COUNT(a) = 2 FROM query_filter_varchar WHERE a = 't1';
+ ?column? 
+----------
+ t
+(1 row)
+
+SELECT a, COUNT(*) FROM query_filter_varchar WHERE a = 't1' GROUP BY a;
+ a  | count 
+----+-------
+ t1 |     2
+(1 row)
+
+DROP TABLE query_filter_varchar;
