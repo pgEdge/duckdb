@@ -16,8 +16,8 @@ namespace pgduckdb {
 
 template <class T, class OP>
 bool
-TemplatedFilterOperation(Datum &value, const duckdb::Value &constant) {
-	return OP::Operation((T)value, constant.GetValueUnsafe<T>());
+TemplatedFilterOperation(T value, const duckdb::Value &constant) {
+	return OP::Operation(value, constant.GetValueUnsafe<T>());
 }
 
 template <class OP>
@@ -55,9 +55,9 @@ FilterOperationSwitch(Datum &value, duckdb::Value &constant, Oid type_oid) {
 	case INT8OID:
 		return TemplatedFilterOperation<int64_t, OP>(value, constant);
 	case FLOAT4OID:
-		return TemplatedFilterOperation<float, OP>(value, constant);
+		return TemplatedFilterOperation<float, OP>(DatumGetFloat4(value), constant);
 	case FLOAT8OID:
-		return TemplatedFilterOperation<double, OP>(value, constant);
+		return TemplatedFilterOperation<double, OP>(DatumGetFloat8(value), constant);
 	case DATEOID: {
 		Datum date_datum = static_cast<int32_t>(value + pgduckdb::PGDUCKDB_DUCK_DATE_OFFSET);
 		return TemplatedFilterOperation<int32_t, OP>(date_datum, constant);
